@@ -1,28 +1,32 @@
 ---
 # tasks file for task7
 
-  - name: Create new iptables chain
-    iptables_raw:
-      name: LOG_DROP
-      rules: |
-        -N LOG_DROP
-        -A LOG_DROP -j LOG --log-level warning --log-prefix "INPUT-DROP:"
-        -A LOG_DROP -j DROP
+  - name: Create the LOGGING chain
+    shell: iptables -N LOGGING
+    # Don't fail 
+    ignore_errors: yes
 
-#  - name:  Setup IPTables logging for dropped incoming packages
-#    iptables:
-#      chain: LOG_DROP
-#      action: append
-#      state: absent
-#      limit: 2/second
-#      limit_burst: '20'
-#      log_prefix: "IPTABLES_REJECT: "
-#      log_level: info
+  - name: Setup IPTables logging for dropped incoming packages 1
+    iptables:
+      chain: INPUT
+      action: append
+      state: present
+      jump: LOGGING
+  
+  - name:  Setup IPTables logging for dropped incoming packages 2
+    iptables:
+      chain: LOGGING
+      action: append
+      state: present
+      limit: 2/second
+      limit_burst: '20'
+      log_prefix: "INPUT-DROP: "
+      log_level: 4
 
   - name: create iptables.conf
     template:
       src: iptables.conf.j2
-      dest: /var/log/iptables.log
+      dest: /etc/rsyslog.d/iptables.conf
 
   - name: create file for iptables log
     file:
@@ -40,3 +44,10 @@
     service:
       name: rsyslog
       state: restarted
+
+      #  - name: Restart server
+      #command: /sbin/shutdown -r +1
+      #async: 0
+      #poll: 0
+      #ignore_errors: true
+

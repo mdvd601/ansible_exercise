@@ -1,11 +1,11 @@
 ---
 # tasks file for task4
 
-#  - name: install Epel
-#    command: amazon-linux-extras install epel
+  - name: install Epel
+    command: amazon-linux-extras install epel
 
-#  - name: Enable EPEL
-#    command: yum-config-manager --enable epel
+  - name: Enable EPEL
+    command: yum-config-manager --enable epel
 
   - name: Install clamav 
     yum:

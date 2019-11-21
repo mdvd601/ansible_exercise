@@ -1,18 +1,42 @@
 ---
 # tasks file for task8
 
-  - name: Create new iptables chain
-    iptables_raw:
-      name: DROP_OUTPUT
-      rules: |
-        -A INPUT --proto udp --sport 53 --jump ACCEPT
-        -A INPUT --proto tcp --sport 53 --jump ACCEPT
-        -A OUTPUT --proto udp --dport 53 --jump ACCEPT
-        -A OUTPUT --proto tcp --dport 53 --jump ACCEPT
-        -A INPUT  -i lo -j ACCEPT
-        -A OUTPUT -o lo -j ACCEPT
-        -A INPUT  -p tcp -m multiport --sports 20,21,80,443 -m state --state NEW,ESTABLISHED -j ACCEPT
-        -A OUTPUT -p tcp -m multiport --dports 20,21,80,443 -m state --state NEW,ESTABLISHED -j ACCEPT
-        -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
-        -A OUTPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
-        -A OUTPUT -j REJECT
+#  - name: Create new iptables chain
+#    iptables_raw:
+#      name: DROP_OUTPUT
+#      rules: |
+#        -A INPUT --proto udp --sport 53 --jump ACCEPT
+#        -A INPUT --proto tcp --sport 53 --jump ACCEPT
+#        -A OUTPUT --proto udp --dport 53 --jump ACCEPT
+#        -A OUTPUT --proto tcp --dport 53 --jump ACCEPT
+#        -A INPUT  -i lo -j ACCEPT
+#        -A OUTPUT -o lo -j ACCEPT
+#        -A INPUT  -p tcp -m multiport --sports 20,21,80,443 -m state --state NEW,ESTABLISHED -j ACCEPT
+#        -A OUTPUT -p tcp -m multiport --dports 20,21,80,443 -m state --state NEW,ESTABLISHED -j ACCEPT
+#        -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
+#        -A OUTPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
+#        -A OUTPUT -j REJECT
+
+  - name: Run iptables rules
+    shell: "{{item}}"
+    with_items:
+      - iptables -P INPUT ACCEPT        
+      - iptables -F
+      - iptables -A INPUT --proto udp --sport 53 --jump ACCEPT
+      - iptables -A INPUT --proto tcp --sport 53 --jump ACCEPT
+      - iptables -A OUTPUT --proto udp --dport 53 --jump ACCEPT
+      - iptables -A OUTPUT --proto tcp --dport 53 --jump ACCEPT
+      - iptables -A INPUT  -i lo -j ACCEPT
+      - iptables -A OUTPUT -o lo -j ACCEPT
+      - iptables -A INPUT  -p tcp -m multiport --sports 20,21,80,443 -m state --state NEW,ESTABLISHED -j ACCEPT
+      - iptables -A OUTPUT -p tcp -m multiport --dports 20,21,80,443 -m state --state NEW,ESTABLISHED -j ACCEPT
+      - iptables -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
+      - iptables -A OUTPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
+      - iptables -A OUTPUT -j REJECT
+
+        #  - name: Restart server
+        #command: /sbin/shutdown -r +1
+        #async: 0
+        #poll: 0
+        #ignore_errors: true
+
