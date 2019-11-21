@@ -1,0 +1,105 @@
+---
+# tasks file for task5
+
+  - name: Install the packages needed for installation
+    yum:
+      name: ['gcc', 'inotify-tools', 'bind-utils']
+      state: latest
+
+  - name: Add yum source list
+    shell: wget -q -O - https://updates.atomicorp.com/installers/atomic | sudo bash | echo warn=false
+
+  - name: (OSSEC) Retrieve latest version of OSSEC from GitHub
+    git:
+      repo: https://github.com/ossec/ossec-hids.git
+      dest: /usr/src/ossec
+      update: yes
+    register: gitupdate
+
+  - name: (OSSEC) development tools package name
+    set_fact:
+      dev_tools: "@Development Tools"
+      pexpect: "pexpect"
+
+  - name: (OSSEC) Install prerequisites
+    package:
+      name: "{{ item }}"
+      state: latest
+    with_items:
+      - "{{ dev_tools }}"
+      - git
+      - python-pip
+
+  - name: (OSSEC) Install Python library pexpect
+    pip:
+      name: pexpect
+      state: latest
+
+  - name: (OSSEC) Check if OSSEC is already installed
+    stat:
+      path: "/var/ossec"
+    register: ossec
+
+  - name: (OSSEC) Stop OSSEC service
+    shell: /var/ossec/bin/ossec-control stop
+    when: ossec.stat.exists
+
+  - name: (OSSEC) Retrieve latest version of OSSEC from GitHub
+    git:
+      repo: https://github.com/ossec/ossec-hids.git
+      dest: /usr/src/ossec
+      update: yes
+    register: gitupdate
+
+  - name: (OSSEC) Install OSSEC-HIDS in local mode
+    expect:
+      command: "/bin/bash /usr/src/ossec-hids-2.9.3/install.sh"
+      timeout: 300
+      responses:
+        'en/br': "en"
+        'Press ENTER': "" 
+        'What kind of installation do you want': "local"
+        'Choose where to install the OSSEC HIDS': "/var/ossec"
+        'Do you want e-mail notification': "n"
+        'Do you want to run the integrity check daemon': "n"
+        'Do you want to run the rootkit detection engine': "y"
+        'Do you want to enable active response': "n"
+      echo: yes
+    when: not ossec.stat.exists
+    register: ossecinstall
+
+  - name: (OSSEC) Cleanup local changes in GIT repository
+    command: "{{ item }}"
+    args:
+      chdir: /usr/src/ossec
+    with_items:
+      - git checkout -f
+      - git clean -fd
+    register: gitcleanup
+    when: ossecinstall is changed
+
+  - name: (OSSEC) Update OSSEC-HIDS
+    expect:
+      command: "/bin/bash /opt/ossec-hids/install.sh"
+      responses:
+        'en/br': "en"
+        'Press ENTER': ""
+        'Do you want to update it': "y"
+        'Do you want to update the rules': "y"
+    when: ossec.stat.exists and gitupdate is changed
+
+  - name: create service file
+    template:
+      src: ossecservice.j2
+      dest: /etc/init.d/ossec
+      mode: 0755
+
+  - name: just force systemd to reread configs
+    systemd:
+      daemon_reload: yes
+
+  - name: (OSSEC) Start OSSEC service
+    service:
+      name: ossec
+      state: started
+

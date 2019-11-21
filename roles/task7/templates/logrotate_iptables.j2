@@ -1,0 +1,12 @@
+/var/log/iptables.log
+{
+  rotate 7
+  daily
+  missingok
+  notifempty
+  delaycompress
+  compress
+  postrotate
+    /sbin/service rsyslog reload 2>&1 || true
+  endscript
+}

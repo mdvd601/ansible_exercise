@@ -1,0 +1,166 @@
+---
+# tasks file for task4
+
+#  - name: install Epel
+#    command: amazon-linux-extras install epel
+
+#  - name: Enable EPEL
+#    command: yum-config-manager --enable epel
+
+  - name: Install clamav 
+    yum:
+      name: ['clamav', 'clamav-data', 'clamav-devel', 'clamav-filesystem', 'clamav-lib', 'clamav-server', 'clamav-scanner', 'clamav-update', 'clamav-scanner-systemd', 'clamav-server-systemd']
+      state: latest
+ 
+  - name: Configure SELinux for ClamAV
+    command: setsebool -P antivirus_can_scan_system 1
+
+  - name: copy clamav config file
+    copy:
+      src: /usr/share/clamav/template/clamd.conf
+      dest: /etc/clamd.d/clamd.conf
+
+  - name: Delete Example line from clamav config file
+    lineinfile: 
+      dest: /etc/clamd.d/clamd.conf
+      regexp: '^(.*)Example(.*)$'
+      state: absent
+
+  - name: uncomment Localsocket in clamd config
+    lineinfile:
+      dest: /etc/clamd.d/clamd.conf
+      regexp: '^(.*)#LocalSocket /var/run/clamd.<SERVICE>/clamd.sock(.*)$'
+      line: 'LocalSocket /var/run/clamd.scan/clamd.sock'
+      backrefs: yes
+
+  - name: uncomment Localsocket in clamd config
+    lineinfile:
+      dest: /etc/clamd.d/clamd.conf
+      regexp: '^(.*)User <USER>(.*)$'
+      line: 'User root'
+      backrefs: yes
+
+  - name: "check /var/log/clamd.scan exsist"
+    stat: path=/var/log/clamd.scan
+    register: logscanfile_stat
+
+  - name: create logfile if not exists
+    file:
+      dest: /var/log/clamd.scan
+      state: touch
+      owner: clamscan
+    when: logscanfile_stat.stat.exists == false
+
+  - name: setup loging
+    lineinfile:
+      dest: /etc/clamd.d/clamd.conf
+      regexp: '^(.*)#LogFile /var/log/clamd.<SERVICE>(.*)$'
+      line: 'LogFile /var/log/clamd.scan'
+      backrefs: yes
+
+  - name: delete the related “Example” line from freshclam conf
+    lineinfile:
+      dest: /etc/freshclam.conf
+      regexp: '^(.*)Example(.*)$'
+      state: absent
+      backup: yes
+
+  - name: Delete Example line from freshclam  config file
+    lineinfile:
+      dest: /etc/freshclam.conf
+      regexp: '^(.*)Example(.*)$'
+      state: absent
+      backup: yes
+
+  - name: Enable freshclam updating 24 times a day
+    lineinfile:
+      dest: /etc/freshclam.conf
+      regexp: '^(.*)\#Checks 24(.*)$'
+      line: 'Checks 24'
+      backrefs: yes
+
+  - name: "Create service file for freshclam"
+    template:
+      src: freshclam.j2
+      dest: /usr/lib/systemd/system/clam-freshclam.service
+
+  - name: start and enable clam-fresh service
+    service:
+      name: clam-freshclam
+      state: started
+      enabled: yes
+
+  - name: "check /usr/lib/systemd/system/clamd@.service exsist"
+    stat: path=/usr/lib/systemd/system/clamd@.service
+    register: file_stat
+
+  - name: "Rename /usr/lib/systemd/system/clamd@.service to /usr/lib/systemd/system/clamd.service"
+    command: mv /usr/lib/systemd/system/clamd@.service /usr/lib/systemd/system/clamd.service
+    when: file_stat.stat.exists
+
+  - name: remove @ from service file
+    lineinfile:
+      dest: /usr/lib/systemd/system/clamd.service
+      regexp: '^(.*).include /lib/systemd/system/clamd@.service(.*)$'
+      line: '.include /lib/systemd/system/clamd.service'
+      backrefs: yes
+
+  - name: "check /usr/lib/systemd/system/clamd@.service exsist"
+    stat: path=/usr/lib/systemd/system/clamd@.service
+    register: scanfile_stat
+
+  - name: "Rename /usr/lib/systemd/system/clamd@scan.service to /usr/lib/systemd/system/clamdscan.service"
+    command: mv /usr/lib/systemd/system/clamd@scan.service /usr/lib/systemd/system/clamdscan.service
+    when: scanfile_stat.stat.exists
+
+  - name: "Create service file for freshclam"
+    template:
+      src: clamd.j2
+      dest: /usr/lib/systemd/system/clamd.service
+
+  - name: uncomment Localsocket in scan config
+    lineinfile:
+      dest: /usr/lib/systemd/system/clamdscan.service
+      regexp: '^(.*).include /lib/systemd/system/clamd@.service(.*)$'
+      line: '.include /lib/systemd/system/clamd.service'
+      backrefs: yes
+
+  - name: start and enable clamd
+    service: 
+      name: "clamd"
+      state: started
+      enabled: yes
+
+  - name: start and enable clamadsacn
+    service:
+      name: "clamdscan.service"
+      state: started
+      enabled: yes
+
+
+  - name: create logdir for daily scan if not exists
+    file:
+      dest: /var/log/clamav/
+      state: directory
+
+  - name: create daily scanning for home folder
+    template:
+      src: clamscan_daily.j2
+      dest: /root/clamscan_daily.sh
+      mode: 0755
+
+  - name: Creates a cron job for daily run for home directory
+    cron:
+      name: daily scan
+      minute: "0"
+      hour: "12"
+      user: root
+      job: "/root/clamscan_daily.sh"
+
+  - name: Creates a cron job for daily update
+    cron:
+      name: daily scan
+      minute: "0"
+      hour: "06"
+      user: root
+      job: "freshclam"

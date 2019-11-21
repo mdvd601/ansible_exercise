@@ -1,0 +1,30 @@
+---
+# tasks file for task1
+  - name: install SELinux packages if installed
+    yum:
+      name: [ 'selinux-policy-targeted', 'selinux-policy', 'libselinux', 'libselinux-python', 'libselinux-utils', 'policycoreutils', ] 
+      state: present
+
+  - name: check SELINUX is enabled
+    shell: /usr/sbin/sestatus | grep -i "SELinux status" | awk '{print $NF}'
+    register: result
+
+  - debug:
+      msg: "{{ result.stdout }}"
+
+  - name: Modify /etc/selinux/config if SELINUX is not enabled
+    lineinfile: 
+      dest: /etc/selinux/config
+      regexp: '^(.*)SELINUX=(.*)$' 
+      line: 'SELINUX=enforcing'
+    when: result.stdout != "enabled"
+
+  - name: "Pause task make sure  you want to reboot for Selinux enablement need to reboot the server"
+    pause: prompt='Press Ctrl+c and then "a" to abort for reboot press Enter host will reboot if SeLinux was not enabled'
+    when: result.stdout != "enabled"
+
+  - name: Restart server
+    command: /sbin/shutdown -r +1
+    async: 0
+    poll: 0
+    ignore_errors: true

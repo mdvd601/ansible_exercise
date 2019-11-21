@@ -1,0 +1,28 @@
+---
+# tasks file for task3
+  - name: download sources
+    get_url:
+      url: http://rpms.adiscon.com/v8-stable/rsyslog.repo
+      dest: /etc/yum.repos.d/rsyslog.repo
+
+  - name: install rsyslog
+    yum:
+      name: rsyslog
+      state: present
+
+  - name: create rsyslog config 
+    template:
+      src: rsyslog.j2
+      dest: /etc/rsyslog.conf
+      backup: yes
+
+  - name: Start and enable rsyslog
+    service:
+      name: rsyslog
+      state: started
+      enabled: yes
+
+  - name: remove repo
+    file:
+      dest: /etc/yum.repos.d/rsyslog.repo
+      state: absent

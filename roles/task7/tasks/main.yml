@@ -1,0 +1,42 @@
+---
+# tasks file for task7
+
+  - name: Create new iptables chain
+    iptables_raw:
+      name: LOG_DROP
+      rules: |
+        -N LOG_DROP
+        -A LOG_DROP -j LOG --log-level warning --log-prefix "INPUT-DROP:"
+        -A LOG_DROP -j DROP
+
+#  - name:  Setup IPTables logging for dropped incoming packages
+#    iptables:
+#      chain: LOG_DROP
+#      action: append
+#      state: absent
+#      limit: 2/second
+#      limit_burst: '20'
+#      log_prefix: "IPTABLES_REJECT: "
+#      log_level: info
+
+  - name: create iptables.conf
+    template:
+      src: iptables.conf.j2
+      dest: /var/log/iptables.log
+
+  - name: create file for iptables log
+    file:
+      path: /var/log/iptables.log
+      owner: root
+      group: root
+      mode: '0600'
+
+  - name: create logrotate for iptables log
+    template:
+      src: logrotate_iptables.j2
+      dest: /etc/logrotate.d/iptables
+
+  - name: restart rsyslog
+    service:
+      name: rsyslog
+      state: restarted

@@ -1,0 +1,8 @@
+---
+# tasks file for task2
+  - name: Enable Ignore Broadcast Requests
+    sysctl: 
+      name: net.ipv4.icmp_echo_ignore_broadcasts
+      value: "1"
+      state: present
+      ignoreerrors: true

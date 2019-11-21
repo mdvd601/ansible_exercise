@@ -1,0 +1,13 @@
+---
+# tasks file for task6
+
+  - name: install rpmdevtools
+    yum:
+      name: ['rpmdevtools', 'gcc', 'rpm-build', 'rpm-devel', 'rpmlint', 'make', 'python', 'bash', 'coreutils', 'diffutils', 'patch']
+      state: present
+
+  - name: run rpmdev-setuptree
+    command: rpmdev-setuptree
+
+  - name: build rpm package
+    command: rpmbuild -ba roles/task6/files/hello-world.spec
